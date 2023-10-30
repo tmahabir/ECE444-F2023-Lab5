@@ -70,7 +70,11 @@ def test_messages(client):
 
 def test_delete_message(client):
     """Ensure the messages are being deleted"""
-    rv = client.get('/delete/1')
+    rv = client.get("/delete/1")
+    data = json.loads(rv.data)
+    assert data["status"] == 0
+    login(client, app.config["USERNAME"], app.config["PASSWORD"])
+    rv = client.get("/delete/1")
     data = json.loads(rv.data)
     assert data["status"] == 1
 
@@ -95,3 +99,28 @@ def test_search_message(client):
     assert b"Test content 1" in rv.data
     assert b"Test Title 2" not in rv.data
     assert b"Test content 2" not in rv.data
+
+def test_login_required_decorator(client):
+    """Test the login_required decorator"""
+    #Simulate deleting without being logged in.
+    rv = client.get("/delete/1")
+    assert rv.status_code == 401
+    data = json.loads(rv.data)
+    assert data["status"] == 0
+    assert data["message"] == "Please log in."
+
+    #Simulate deleting being logged in.
+    rv = login(client, app.config["USERNAME"], app.config["PASSWORD"])
+    rv = client.get("/delete/1")
+    assert rv.status_code == 200
+    data = json.loads(rv.data)
+    assert data["status"] == 1 
+
+    #Simulate deleting after being logged out.
+    rv = logout(client)
+    rv = client.get("/delete/1")
+    assert rv.status_code == 401
+    data = json.loads(rv.data)
+    assert data['status'] == 0
+    assert data["message"] == "Please log in."
+    
